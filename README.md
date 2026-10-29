@@ -2,6 +2,8 @@
 
 A button in the OpenCode desktop session header that shows what is installed and lets you turn plugins on and off. Skills are listed too — clicking one inserts `@skill-id` into the prompt.
 
+![The plugin and skill switcher](docs/popover.jpg)
+
 ## What it does
 
 - **Plugins** — one row per plugin in your global config, with a switch. Turning one off appends `"-<plugin-id>"` to the `plugins` array; turning it back on removes that line. No restart: the server reloads in about a second.
