@@ -12,13 +12,14 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      # Node 24 ships npm 11.5+, which is what trusted publishing (OIDC) needs.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           registry-url: https://registry.npmjs.org
           cache: npm
       - run: npm ci
       # prepack rebuilds dist/gui-experimental.cjs before the tarball is packed.
+      # No token: npm exchanges the OIDC token for a short-lived one, once this
+      # repo and workflow are listed as a trusted publisher on npmjs.com.
       - run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
