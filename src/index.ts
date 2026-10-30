@@ -7,11 +7,15 @@ import { join } from "node:path"
 const SELF = "plugin-toggle"
 
 const configDir = join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "opencode")
+const CATALOG = "https://www.opendock.net/zh/plugins-index.json"
+const CACHE_MS = 12 * 60 * 60 * 1000
+const catalogPath = join(configDir, SELF, ".catalog.json")
 
 type Row = {
   id: string
   label: string
   version: string | null
+  description: string
   enabled: boolean
   status: "active" | "failed" | "off"
   error: string | null
@@ -180,7 +184,35 @@ async function configPath(): Promise<string | null> {
 /* ---------- state ---------- */
 
 const bareSpec = (spec: string) => spec.replace(/@[^@/]*$/, "")
+
+/**
+ * Package name -> one-line description, from the same OpenDock index the market lists.
+ * Read-only and best effort: a failed fetch just leaves rows without a description.
+ */
+async function catalog(): Promise<Record<string, string>> {
+  try {
+    const cached = JSON.parse(await fs.readFile(catalogPath, "utf8"))
+    if (Date.now() - cached.at < CACHE_MS && cached.map) return cached.map
+  } catch {}
+  try {
+    const res = await fetch(CATALOG)
+    if (!res.ok) throw new Error(String(res.status))
+    const raw = (await res.json()) as Array<Record<string, unknown>>
+    const map: Record<string, string> = {}
+    for (const entry of raw) {
+      const name = String(entry.name ?? "")
+      if (name) map[name] = String(entry.descriptionZh || entry.description || "")
+    }
+    await fs.mkdir(join(configDir, SELF), { recursive: true })
+    await fs.writeFile(catalogPath, JSON.stringify({ at: Date.now(), map }))
+    return map
+  } catch {
+    return {}
+  }
+}
 const guessId = (spec: string) => bareSpec(spec).split("/").pop() ?? spec
+/** Package name minus scope and the usual `opencode-` prefix, which config entries and catalogs disagree on. */
+const leafOf = (name: string) => (bareSpec(name).split("/").pop() ?? name).replace(/^opencode-/, "")
 
 export default Plugin.define({
   id: SELF,
@@ -206,6 +238,17 @@ export default Plugin.define({
         .filter(Boolean) as string[]
 
       const bySpec = new Map((await list()).map((plugin) => [bareSpec(String(plugin.source.target ?? plugin.source.path ?? plugin.id)), plugin]))
+      const about = await catalog()
+      // A config entry and a catalog entry can name the same plugin differently (@cortexkit/opencode-magic-context
+      // vs @cortexkit/magic-context), so fall back to the package name, but only when that is unambiguous.
+      const byLeaf = new Map<string, string>()
+      const ambiguous = new Set<string>()
+      for (const [name, text] of Object.entries(about)) {
+        const leaf = leafOf(name)
+        if (byLeaf.has(leaf)) ambiguous.add(leaf)
+        else byLeaf.set(leaf, text)
+      }
+      const describe = (spec: string) => about[bareSpec(spec)] ?? (ambiguous.has(leafOf(spec)) ? "" : (byLeaf.get(leafOf(spec)) ?? ""))
 
       const disabled = new Map<string, string>()
       for (const spec of raw) if (spec.startsWith("-")) disabled.set(spec.slice(1), spec)
@@ -222,6 +265,7 @@ export default Plugin.define({
           id,
           label: match?.id ?? id,
           version: (match?.source.version as string | undefined) ?? null,
+          description: describe(spec),
           enabled: !off,
           status: off ? "off" : match?.state.status === "active" ? "active" : "failed",
           error: match?.state.error ?? null,
@@ -229,7 +273,17 @@ export default Plugin.define({
         })
         if (off) disabled.delete(id)
       }
-      for (const [id] of disabled) plugins.push({ id, label: id, version: null, enabled: false, status: "off", error: null, toggleable: true })
+      for (const [id, spec] of disabled)
+        plugins.push({
+          id,
+          label: id,
+          version: null,
+          description: describe(spec.slice(1)),
+          enabled: false,
+          status: "off",
+          error: null,
+          toggleable: true,
+        })
 
       const res = await ctx.skill.list()
       const skills = ((Array.isArray(res) ? res : ((res as { data?: unknown[] })?.data ?? [])) as Array<{

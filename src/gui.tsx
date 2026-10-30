@@ -7,6 +7,7 @@ type PluginRow = {
   id: string
   label: string
   version: string | null
+  description: string
   enabled: boolean
   status: "active" | "failed" | "off"
   error: string | null
@@ -74,6 +75,7 @@ function View(props: { screen: SessionScreen; close: () => void }) {
     title: string
     meta: string
     detail?: string
+    error?: string
     enabled?: boolean
     toggleable?: boolean
     busy?: boolean
@@ -106,6 +108,9 @@ function View(props: { screen: SessionScreen; close: () => void }) {
             </div>
           )}
         </Show>
+        <Show when={row.error}>
+          {(message) => <div style={{ "font-size": "12px", color: "var(--color-danger, #d33)" }}>{message()}</div>}
+        </Show>
       </div>
       <Show when={row.toggleable}>
         <div onClick={(event) => event.stopPropagation()}>
@@ -130,7 +135,8 @@ function View(props: { screen: SessionScreen; close: () => void }) {
             <Row
               title={plugin.label}
               meta={plugin.version ?? ""}
-              detail={plugin.status === "failed" ? (plugin.error ?? ctx.t("failed")) : undefined}
+              detail={plugin.description || undefined}
+              error={plugin.status === "failed" ? (plugin.error ?? ctx.t("failed")) : undefined}
               enabled={plugin.enabled}
               toggleable={plugin.toggleable}
               busy={busy() === plugin.id}

@@ -6,7 +6,7 @@ A button in the OpenCode desktop session header that shows what is installed and
 
 ## What it does
 
-- **Plugins** — one row per plugin in your global config, with a switch. Turning one off appends `"-<plugin-id>"` to the `plugins` array; turning it back on removes that line. No restart: the server reloads in about a second.
+- **Plugins** — one row per plugin in your global config, with a one-line description taken from the OpenDock catalog, and a switch. Turning one off appends `"-<plugin-id>"` to the `plugins` array; turning it back on removes that line. No restart: the server reloads in about a second.
 - Off plugins stay in the list, greyed out, so you can turn them back on without hunting for the package name.
 - A plugin that failed to load shows its error rather than disappearing.
 - **Skills** — click a row to insert `@<skill-id>` into the prompt. Skills are loaded by the agent, so the insert is a mention, not a call.

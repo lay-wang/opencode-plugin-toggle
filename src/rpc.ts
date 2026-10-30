@@ -8,12 +8,13 @@ const PluginRow = {
     id: { type: "string" },
     label: { type: "string" },
     version: nullable("string"),
+    description: { type: "string" },
     enabled: { type: "boolean" },
     status: { type: "string", enum: ["active", "failed", "off"] },
     error: nullable("string"),
     toggleable: { type: "boolean" },
   },
-  required: ["id", "label", "version", "enabled", "status", "error", "toggleable"],
+  required: ["id", "label", "version", "description", "enabled", "status", "error", "toggleable"],
   additionalProperties: false,
 } as const
 
